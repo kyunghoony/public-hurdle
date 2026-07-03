@@ -53,6 +53,9 @@ python -m hurdle.cli hurdle --universe data/kr_top100.csv
 
 # KR top-100 시세·모멘텀 갱신
 python -m hurdle.cli fetch --pool data/kr_pool.csv --out data/kr_top100.csv --top 100
+
+# 로컬 브라우저 UI
+python -m hurdle.web
 ```
 
 ## 설계 결정 (요약)

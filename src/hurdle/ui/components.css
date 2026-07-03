@@ -1,0 +1,221 @@
+.button,
+.segment {
+  min-height: 36px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 var(--space-4);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out;
+  white-space: nowrap;
+}
+
+.button:hover,
+.segment:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.button:active,
+.segment:active,
+tbody tr:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible,
+.segment:focus-visible,
+input:focus-visible,
+select:focus-visible,
+th button:focus-visible,
+.tickerButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(113, 112, 255, 0.22);
+}
+
+.button.primary {
+  border-color: rgba(113, 112, 255, 0.62);
+  background: var(--accent-primary);
+}
+
+.button.primary:hover {
+  background: var(--accent-hover);
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.58;
+}
+
+.controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+input,
+select {
+  min-height: 36px;
+  max-width: 220px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 var(--space-3);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.segmented {
+  min-height: 36px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.segment {
+  min-height: 30px;
+  border-color: transparent;
+  padding: 0 var(--space-3);
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.segment.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tableWrap {
+  max-height: calc(100dvh - 360px);
+  overflow: auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #101113;
+}
+
+th,
+td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: right;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+th button,
+.tickerButton {
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+tbody tr {
+  background: transparent;
+  transition: background-color 120ms ease-out;
+}
+
+tbody tr:hover,
+tbody tr.selected {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.tickerButton {
+  max-width: 180px;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  min-height: 24px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+}
+
+.pass {
+  color: var(--status-success);
+}
+
+.warn {
+  color: var(--status-warning);
+}
+
+.fail,
+.negative {
+  color: var(--status-error);
+}
+
+.positive {
+  color: var(--status-success);
+}
+
+.detailContent {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.detailTitle {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.detailTitle strong {
+  font-size: 22px;
+}
+
+.factGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.fact {
+  min-height: 68px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.fact span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.fact strong {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 18px;
+}
+
+.empty {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}

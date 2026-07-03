@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Public Hurdle local valuation dashboard">
+    <title>Public Hurdle</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+    <link rel="stylesheet" href="/assets/components.css">
+    <link rel="stylesheet" href="/assets/responsive.css">
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brandMark">H</div>
+          <div>
+            <h1>Public Hurdle</h1>
+            <p id="statusText">로딩 중</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="reloadButton" class="button secondary" type="button">새로고침</button>
+          <button id="refreshButton" class="button primary" type="button">Yahoo 갱신</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="summaryGrid" aria-label="유니버스 요약">
+          <article class="metric">
+            <span>유니버스</span>
+            <strong id="countMetric">-</strong>
+            <small id="mcapMetric">-</small>
+          </article>
+          <article class="metric">
+            <span>재무 커버리지</span>
+            <strong id="financialMetric">-</strong>
+            <small>DART 입력 보존</small>
+          </article>
+          <article class="metric">
+            <span>레짐</span>
+            <strong id="regimeMetric">-</strong>
+            <small id="regimeSubMetric">-</small>
+          </article>
+          <article class="metric">
+            <span>허들</span>
+            <strong id="hurdleMetric">-</strong>
+            <small id="hurdleSubMetric">-</small>
+          </article>
+        </section>
+
+        <section class="railPanel" aria-label="3개월 모멘텀">
+          <div class="panelHeader">
+            <h2>3M Momentum Rail</h2>
+            <span id="railMeta">-</span>
+          </div>
+          <div id="momentumRail" class="momentumRail"></div>
+        </section>
+
+        <section class="workspace">
+          <div class="panel tablePanel">
+            <div class="panelHeader controlsHeader">
+              <h2>KR Top 100</h2>
+              <div class="controls">
+                <label class="field">
+                  <span>검색</span>
+                  <input id="searchInput" type="search" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span>섹터</span>
+                  <select id="sectorSelect"></select>
+                </label>
+                <div class="segmented" role="group" aria-label="품질 필터">
+                  <button class="segment active" data-filter="all" type="button">전체</button>
+                  <button class="segment" data-filter="pass" type="button">통과</button>
+                  <button class="segment" data-filter="missing" type="button">재무없음</button>
+                  <button class="segment" data-filter="fail" type="button">탈락</button>
+                </div>
+              </div>
+            </div>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th><button data-sort="ticker" type="button">종목</button></th>
+                    <th><button data-sort="mcap" type="button">시총</button></th>
+                    <th><button data-sort="ret3m" type="button">3M</button></th>
+                    <th><button data-sort="off52w" type="button">52W</button></th>
+                    <th><button data-sort="quality" type="button">품질</button></th>
+                    <th><button data-sort="rStar" type="button">r*</button></th>
+                  </tr>
+                </thead>
+                <tbody id="rowsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside class="panel detailPanel" aria-label="선택 종목 상세">
+            <div id="detailContent" class="detailContent"></div>
+          </aside>
+        </section>
+      </main>
+    </div>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,79 @@
+@media (max-width: 1024px) {
+  .summaryGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .detailPanel {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    padding: var(--space-3);
+  }
+
+  .topbar,
+  .controlsHeader,
+  .workspace,
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar,
+  .controlsHeader {
+    display: grid;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .actions,
+  .controls {
+    justify-content: stretch;
+  }
+
+  .button,
+  input,
+  select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .segmented {
+    overflow-x: auto;
+  }
+
+  .tableWrap {
+    max-height: 58dvh;
+  }
+
+  th:nth-child(4),
+  td:nth-child(4),
+  th:nth-child(5),
+  td:nth-child(5),
+  th:nth-child(6),
+  td:nth-child(6) {
+    display: none;
+  }
+
+  th,
+  td {
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .tickerButton {
+    max-width: 116px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}

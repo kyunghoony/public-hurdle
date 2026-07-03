@@ -10,6 +10,7 @@ dev = ["pytest>=7.0"]
 
 [project.scripts]
 hurdle = "hurdle.cli:main"
+hurdle-web = "hurdle.web:main"
 
 [build-system]
 requires = ["setuptools>=61"]
@@ -17,3 +18,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+hurdle = ["ui/*.html", "ui/*.css", "ui/*.js"]
