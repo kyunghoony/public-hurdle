@@ -1,15 +1,16 @@
 """CLI — python -m hurdle.cli <command>"""
 import argparse
 import csv
-import sys
+from pathlib import Path
 from .config import load_config
 from .models import Ticker
 from .engine import quality, regime, hurdle as hurdle_mod
 from . import deal as deal_mod
 from . import report
+from .providers import yahoo
+from .refresh import CSV_COLUMNS, UniverseRow, merge_universe
 
-COLS = ["ticker", "market", "ccy", "sector", "subsector", "mcap", "ttmRev", "ttmFCF",
-        "margin3y", "growth", "roic", "ndEbitda", "cagr", "ret1m", "ret3m", "ret6m", "off52w"]
+COLS = list(CSV_COLUMNS)
 
 
 def read_universe(path: str) -> list[Ticker]:
@@ -26,6 +27,50 @@ def read_universe(path: str) -> list[Ticker]:
                               ret_1m=gn("ret1m"), ret_3m=gn("ret3m"), ret_6m=gn("ret6m"),
                               off_52w_high=gn("off52w"), source="csv"))
     return out
+
+
+def read_pool(path: str) -> list[yahoo.PoolRow]:
+    out: list[yahoo.PoolRow] = []
+    with open(path, encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            out.append(
+                {
+                    "code": row["code"],
+                    "suffix": row["suffix"],
+                    "name": row["name"],
+                    "sector": row["sector"],
+                    "subsector": row.get("subsector", ""),
+                }
+            )
+    return out
+
+
+def write_universe(path: str, rows: list[UniverseRow]) -> None:
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=COLS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _missing_entries(pool_path: str) -> list[str]:
+    missing_path = Path(pool_path).with_name("missing.log")
+    if not missing_path.exists():
+        return []
+    return [line.strip() for line in missing_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def cmd_fetch(args):
+    pool = read_pool(args.pool)
+    old = read_universe(args.out) if Path(args.out).exists() else []
+    fresh = yahoo.fetch_universe(pool, {}, top_n=args.top)
+    rows = merge_universe(fresh, old)
+    write_universe(args.out, rows)
+    old_financial_symbols = {ticker.symbol for ticker in old if ticker.ttm_rev > 0}
+    preserved_count = sum(1 for ticker in fresh if ticker.symbol in old_financial_symbols)
+    missing = _missing_entries(args.pool)
+    print(f"종목 수: {len(rows)}")
+    print(f"재무 보존 건수: {preserved_count}")
+    print("스킵 목록: " + (", ".join(missing) if missing else "없음"))
 
 
 def cmd_hurdle(args):
@@ -78,6 +123,11 @@ def main():
     dl.add_argument("--config", default="config/semiconductor.yaml")
     dl.add_argument("--out")
     dl.set_defaults(fn=cmd_deal)
+    fetch = sub.add_parser("fetch", help="KR 유니버스 시세/모멘텀 갱신")
+    fetch.add_argument("--pool", required=True)
+    fetch.add_argument("--out", required=True)
+    fetch.add_argument("--top", type=int, default=100)
+    fetch.set_defaults(fn=cmd_fetch)
     args = p.parse_args()
     args.fn(args)
 

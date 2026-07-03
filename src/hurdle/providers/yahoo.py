@@ -1,28 +1,56 @@
-"""Yahoo Finance 프로바이더 — cookie+crumb 배치 쿼트 + v8 차트 모멘텀.
+from __future__ import annotations
 
-2026-07-03 검증 완료 경로. KRX 로그인화(pykrx 사망)·네이버 차단 환경에서의 차선.
-한계: 시총의 주식수 반영 시차 가능 -> 사용 전 KRX/네이버 크로스체크 권장.
-"""
 import time
-import requests
+from dataclasses import dataclass
+from typing import Final, TypedDict
+
+from curl_cffi import requests
+
 from ..models import Ticker
 
-UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125 Safari/537.36"}
+UA: Final = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125 Safari/537.36"
+}
+QUOTE_FIELDS: Final = "shortName,marketCap,fiftyTwoWeekHigh,regularMarketPrice,quoteType"
+
+
+class PoolRow(TypedDict):
+    code: str
+    suffix: str
+    name: str
+    sector: str
+    subsector: str
+
+
+class Momentum(TypedDict, total=False):
+    ret_1m: float
+    ret_3m: float
+    ret_6m: float
+
+
+@dataclass(frozen=True, slots=True)
+class RankedQuote:
+    symbol: str
+    pool_row: PoolRow
+    mcap_eok: float
+    off_52w_high: float | None
 
 
 def _session() -> tuple[requests.Session, str]:
-    s = requests.Session()
-    s.headers.update(UA)
+    s = requests.Session(impersonate="chrome120", headers=UA)
     s.get("https://fc.yahoo.com", timeout=10)
     crumb = s.get("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=10).text.strip()
     return s, crumb
 
 
-def _momentum(s: requests.Session, sym: str) -> dict:
+def _momentum(s: requests.Session, sym: str) -> Momentum:
     for _ in range(2):
         try:
-            r = s.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
-                      params={"range": "1y", "interval": "1d"}, timeout=15)
+            r = s.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
+                params={"range": "1y", "interval": "1d"},
+                timeout=15,
+            )
             if r.status_code == 429:
                 time.sleep(2.5)
                 continue
@@ -30,54 +58,92 @@ def _momentum(s: requests.Session, sym: str) -> dict:
             if len(closes) < 130:
                 return {}
             last = closes[-1]
-            ret = lambda n: round((last / closes[-1 - n] - 1) * 100, 1)
-            return {"ret_1m": ret(21), "ret_3m": ret(63), "ret_6m": ret(126)}
-        except Exception:
+            return {
+                "ret_1m": round((last / closes[-22] - 1) * 100, 1),
+                "ret_3m": round((last / closes[-64] - 1) * 100, 1),
+                "ret_6m": round((last / closes[-127] - 1) * 100, 1),
+            }
+        except (KeyError, IndexError, TypeError, requests.RequestsError):
             time.sleep(1.2)
     return {}
 
 
-def fetch_universe(pool: list[dict], cfg: dict, top_n: int = 100) -> list[Ticker]:
-    """pool: [{code, suffix, name, sector, subsector}] -> 시총 랭킹 top_n + 모멘텀."""
+def _quote_batch(s: requests.Session, crumb: str, symbols: list[str]) -> list[dict]:
+    r = s.get(
+        "https://query1.finance.yahoo.com/v7/finance/quote",
+        params={"symbols": ",".join(symbols), "crumb": crumb, "fields": QUOTE_FIELDS},
+        timeout=20,
+    )
+    return r.json().get("quoteResponse", {}).get("result", [])
+
+
+def _add_quotes(got: dict[str, dict], quotes: list[dict]) -> None:
+    for quote in quotes:
+        if quote.get("quoteType") == "EQUITY" and quote.get("marketCap"):
+            got[quote["symbol"]] = quote
+
+
+def _flipped_symbol(symbol: str) -> str:
+    if symbol.endswith(".KS"):
+        return symbol.replace(".KS", ".KQ")
+    return symbol.replace(".KQ", ".KS")
+
+
+def _ranked_quotes(syms: dict[str, PoolRow], got: dict[str, dict]) -> list[RankedQuote]:
+    rows: list[RankedQuote] = []
+    for sym, quote in got.items():
+        pool_row = syms[sym]
+        price = quote.get("regularMarketPrice")
+        high = quote.get("fiftyTwoWeekHigh")
+        off = round((price / high - 1) * 100, 1) if price and high else None
+        rows.append(
+            RankedQuote(
+                symbol=sym,
+                pool_row=pool_row,
+                mcap_eok=quote["marketCap"] / 1e8,
+                off_52w_high=off,
+            )
+        )
+    rows.sort(key=lambda row: -row.mcap_eok)
+    return rows
+
+
+def fetch_universe(pool: list[PoolRow], cfg: dict, top_n: int = 100) -> list[Ticker]:
     s, crumb = _session()
     syms = {f"{p['code']}.{p['suffix']}": p for p in pool}
     got = {}
     keys = list(syms)
     for i in range(0, len(keys), 40):
-        r = s.get("https://query1.finance.yahoo.com/v7/finance/quote",
-                  params={"symbols": ",".join(keys[i:i + 40]), "crumb": crumb,
-                          "fields": "shortName,marketCap,fiftyTwoWeekHigh,regularMarketPrice,quoteType"},
-                  timeout=20)
-        for it in r.json().get("quoteResponse", {}).get("result", []):
-            if it.get("quoteType") == "EQUITY" and it.get("marketCap"):
-                got[it["symbol"]] = it
+        _add_quotes(got, _quote_batch(s, crumb, keys[i:i + 40]))
         time.sleep(0.4)
-    # 미수신 -> 거래소 접미사 flip 재시도
     missing = [k for k in keys if k not in got]
     if missing:
-        flip = {k: k.replace(".KS", ".KQ") if k.endswith(".KS") else k.replace(".KQ", ".KS") for k in missing}
-        r = s.get("https://query1.finance.yahoo.com/v7/finance/quote",
-                  params={"symbols": ",".join(flip.values()), "crumb": crumb,
-                          "fields": "shortName,marketCap,fiftyTwoWeekHigh,regularMarketPrice,quoteType"},
-                  timeout=20)
-        for it in r.json().get("quoteResponse", {}).get("result", []):
-            if it.get("quoteType") == "EQUITY" and it.get("marketCap"):
-                orig = next(k for k, v in flip.items() if v == it["symbol"])
-                syms[it["symbol"]] = syms[orig]
-                got[it["symbol"]] = it
+        flip = {k: _flipped_symbol(k) for k in missing}
+        flipped_to_orig = {flipped: orig for orig, flipped in flip.items()}
+        flipped_symbols = list(flipped_to_orig)
+        for i in range(0, len(flipped_symbols), 40):
+            for quote in _quote_batch(s, crumb, flipped_symbols[i:i + 40]):
+                if quote.get("quoteType") == "EQUITY" and quote.get("marketCap"):
+                    orig = flipped_to_orig[quote["symbol"]]
+                    syms[quote["symbol"]] = syms[orig]
+                    got[quote["symbol"]] = quote
+            time.sleep(0.4)
 
-    rows = []
-    for sym, it in got.items():
-        p = syms[sym]
-        price, hi = it.get("regularMarketPrice"), it.get("fiftyTwoWeekHigh")
-        rows.append((sym, p, it["marketCap"] / 1e8,
-                     round((price / hi - 1) * 100, 1) if price and hi else None))
-    rows.sort(key=lambda x: -x[2])
-    out = []
-    for sym, p, mcap_eok, off in rows[:top_n]:
-        mom = _momentum(s, sym)
-        out.append(Ticker(symbol=p["name"], market="KR", ccy="KRW",
-                          sector=p["sector"], subsector=p.get("subsector"),
-                          mcap=round(mcap_eok), off_52w_high=off, source="yahoo", **mom))
+    out: list[Ticker] = []
+    for quote in _ranked_quotes(syms, got)[:top_n]:
+        row = quote.pool_row
+        out.append(
+            Ticker(
+                symbol=row["name"],
+                market="KR",
+                ccy="KRW",
+                sector=row["sector"],
+                subsector=row.get("subsector") or None,
+                mcap=round(quote.mcap_eok),
+                off_52w_high=quote.off_52w_high,
+                source="yahoo",
+                **_momentum(s, quote.symbol),
+            )
+        )
         time.sleep(0.25)
     return out
