@@ -1,0 +1,11 @@
+name: 샘플 팹리스 A
+sector: semiconductor
+subsector: chip
+entry_pre: 470        # 억원
+investment: 30        # 억원
+exit_year: 3
+dilution_to_exit: 0.20
+exit_scenarios:
+  bear: {rev: 300, mult: 2}     # exit 매출(억원) x 배수(PSR/PER)
+  base: {rev: 500, mult: 4}
+  bull: {rev: 800, mult: 5}

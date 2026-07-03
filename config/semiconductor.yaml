@@ -1,0 +1,29 @@
+# 섹터 config — 모든 판단 파라미터는 여기서만 수정한다 (코드 하드코딩 금지)
+sector: semiconductor
+universe:
+  band_us_krw: [10.0e12, 100.0e12]   # US 시총 밴드 (원화 환산)
+  band_kr_krw: [1.0e12, 30.0e12]     # KR 밴드 — 10조 적용 시 삼성/하이닉스 빼면 리스트가 빈다
+  fx_krw_usd: 1390
+engine:
+  consensus_haircut: 0.15            # 컨센서스도 procyclical — 일괄 삭감
+  terminal_growth: 0.03
+  fcf_mode: normalized               # 반도체 필수: TTM 매출 x 3yr 중위마진. ttm 모드는 사이클 함정.
+  growth_cap: 0.30
+quality:                             # 허들은 quality compounder로만 구성 — 밸류트랩 오염 방지
+  roic_min: 15.0
+  fcf_margin_min: 10.0
+  netdebt_ebitda_max: 2.0
+premium:                             # 자의적인 게 맞고, 그래서 노출한다. 딜별 조정 시 서면 근거 필수.
+  illiquidity: 0.05
+  info_governance: 0.03
+  execution_dilution: 0.02
+regime:                              # 레짐 = 리스크 트리거. 매력도 점수 아님.
+  hot_ret3m: 15.0
+  hot_off52: -10.0
+  hot_blowoff_ret3m: 40.0            # 3M이 이 이상이면 고점比 무관 HOT (블로우오프 후 조정 구간 방어)
+  cold_ret3m: 0.0
+  cold_off52: -25.0
+  hot_premium_add: 0.025
+  min_names: 2
+verdict:
+  borderline_band: 0.03
