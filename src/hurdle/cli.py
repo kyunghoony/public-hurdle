@@ -7,8 +7,10 @@ from .models import Ticker
 from .engine import quality, regime, hurdle as hurdle_mod
 from . import deal as deal_mod
 from . import report
-from .providers import yahoo
-from .refresh import CSV_COLUMNS, UniverseRow, merge_universe
+from .providers import dart, yahoo
+from .providers.dart import DartApiError, MissingDartApiKey
+from .providers.dart_http import DartTransportError
+from .refresh import CSV_COLUMNS, UniverseRow, merge_financials, merge_universe
 
 COLS = list(CSV_COLUMNS)
 
@@ -73,6 +75,25 @@ def cmd_fetch(args):
     print("스킵 목록: " + (", ".join(missing) if missing else "없음"))
 
 
+def cmd_dart_fill(args):
+    old = read_universe(args.universe)
+    old_financial_count = sum(1 for ticker in old if ticker.ttm_rev > 0)
+    try:
+        filled = dart.fill_financials(old)
+    except MissingDartApiKey as exc:
+        raise SystemExit("오류: DART_API_KEY 환경변수가 필요합니다.") from exc
+    except (DartApiError, DartTransportError) as exc:
+        raise SystemExit(f"오류: {exc}") from exc
+    rows = merge_financials(filled, old)
+    write_universe(args.out or args.universe, rows)
+    financial_count = sum(1 for row in rows if row["ttmRev"])
+    missing = [row["ticker"] for row in rows if not row["ttmRev"]]
+    print(f"종목 수: {len(rows)}")
+    print(f"기존 재무 입력 건수: {old_financial_count}")
+    print(f"DART 후 재무 입력 건수: {financial_count}")
+    print("재무 미입력: " + (", ".join(missing) if missing else "없음"))
+
+
 def cmd_hurdle(args):
     cfg = load_config(args.config)
     rows = read_universe(args.universe)
@@ -128,6 +149,10 @@ def main():
     fetch.add_argument("--out", required=True)
     fetch.add_argument("--top", type=int, default=100)
     fetch.set_defaults(fn=cmd_fetch)
+    dart_fill = sub.add_parser("dart-fill", help="OpenDART로 재무 컬럼 채움")
+    dart_fill.add_argument("--universe", required=True)
+    dart_fill.add_argument("--out")
+    dart_fill.set_defaults(fn=cmd_dart_fill)
     args = p.parse_args()
     args.fn(args)
 

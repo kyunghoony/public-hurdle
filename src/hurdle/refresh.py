@@ -80,31 +80,50 @@ def _financials(old: Ticker | None) -> dict[str, str]:
     }
 
 
+def _csv_row(ticker: Ticker, base: Ticker, financial_source: Ticker | None) -> UniverseRow:
+    row: UniverseRow = {
+        "ticker": ticker.symbol,
+        "market": base.market,
+        "ccy": base.ccy,
+        "sector": base.sector,
+        "subsector": base.subsector or "",
+        "mcap": _format_number(ticker.mcap),
+        "ttmRev": "",
+        "ttmFCF": "",
+        "margin3y": "",
+        "growth": "",
+        "roic": "",
+        "ndEbitda": "",
+        "cagr": "",
+        "ret1m": _format_optional_number(ticker.ret_1m),
+        "ret3m": _format_optional_number(ticker.ret_3m),
+        "ret6m": _format_optional_number(ticker.ret_6m),
+        "off52w": _format_optional_number(ticker.off_52w_high),
+    }
+    row.update(_financials(financial_source))
+    return row
+
+
+def _filled_financial_source(filled: Ticker | None, old: Ticker) -> Ticker:
+    if filled is not None and filled.ttm_rev > 0:
+        return filled
+    return old
+
+
 def merge_universe(fresh: list[Ticker], old: list[Ticker]) -> list[UniverseRow]:
     old_by_symbol = {ticker.symbol: ticker for ticker in old}
     rows: list[UniverseRow] = []
     for ticker in fresh:
         old_ticker = old_by_symbol.get(ticker.symbol)
         base = old_ticker if old_ticker is not None else ticker
-        row: UniverseRow = {
-            "ticker": ticker.symbol,
-            "market": base.market,
-            "ccy": base.ccy,
-            "sector": base.sector,
-            "subsector": base.subsector or "",
-            "mcap": _format_number(ticker.mcap),
-            "ttmRev": "",
-            "ttmFCF": "",
-            "margin3y": "",
-            "growth": "",
-            "roic": "",
-            "ndEbitda": "",
-            "cagr": "",
-            "ret1m": _format_optional_number(ticker.ret_1m),
-            "ret3m": _format_optional_number(ticker.ret_3m),
-            "ret6m": _format_optional_number(ticker.ret_6m),
-            "off52w": _format_optional_number(ticker.off_52w_high),
-        }
-        row.update(_financials(old_ticker))
-        rows.append(row)
+        rows.append(_csv_row(ticker, base, old_ticker))
+    return rows
+
+
+def merge_financials(filled: list[Ticker], old: list[Ticker]) -> list[UniverseRow]:
+    filled_by_symbol = {ticker.symbol: ticker for ticker in filled}
+    rows: list[UniverseRow] = []
+    for old_ticker in old:
+        financial_source = _filled_financial_source(filled_by_symbol.get(old_ticker.symbol), old_ticker)
+        rows.append(_csv_row(old_ticker, old_ticker, financial_source))
     return rows

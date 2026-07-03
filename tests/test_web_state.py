@@ -2,7 +2,7 @@ import csv
 from pathlib import Path
 
 from hurdle.models import Ticker
-from hurdle.web_state import WebPaths, build_state, refresh_state
+from hurdle.web_state import WebPaths, build_state, fill_financials_state, refresh_state
 
 
 HEADER = [
@@ -138,3 +138,68 @@ def test_refresh_state_preserves_existing_financials_with_fake_fetcher(tmp_path)
     assert row["ret3m"] == 22
     assert row["ttmRev"] == 100
     assert row["sector"] == "반도체"
+
+
+def test_fill_financials_state_writes_dart_financials_without_market_changes(tmp_path):
+    # Given: an existing universe with market data but no financials.
+    universe = tmp_path / "universe.csv"
+    pool = tmp_path / "pool.csv"
+    _write_pool(pool)
+    _write_csv(
+        universe,
+        [
+            {
+                "ticker": "삼성전자",
+                "market": "KR",
+                "ccy": "KRW",
+                "sector": "반도체",
+                "subsector": "chip",
+                "mcap": "1000",
+                "ttmRev": "",
+                "ttmFCF": "",
+                "margin3y": "",
+                "growth": "",
+                "roic": "",
+                "ndEbitda": "",
+                "cagr": "",
+                "ret1m": "1",
+                "ret3m": "2",
+                "ret6m": "3",
+                "off52w": "-4",
+            }
+        ],
+    )
+    paths = WebPaths(universe=universe, pool=pool, config=Path("config/semiconductor.yaml"))
+
+    def fake_filler(tickers):
+        [ticker] = tickers
+        return [
+            Ticker(
+                symbol=ticker.symbol,
+                market=ticker.market,
+                ccy=ticker.ccy,
+                sector=ticker.sector,
+                subsector=ticker.subsector,
+                mcap=9999,
+                ttm_rev=100,
+                ttm_fcf=20,
+                fcf_margin_3y=20,
+                growth=10,
+                roic_3y=20,
+                netdebt_ebitda=1,
+                rev_cagr_3y=5,
+            )
+        ]
+
+    # When: financial fill runs through the browser state path.
+    state = fill_financials_state(paths, filler=fake_filler)
+
+    # Then: financials are written while existing market fields remain unchanged.
+    row = state["rows"][0]
+    assert state["financials"]["filledCount"] == 1
+    assert state["financials"]["oldFinancialCount"] == 0
+    assert state["financials"]["missing"] == []
+    assert row["mcap"] == 1000
+    assert row["ret3m"] == 2
+    assert row["ttmRev"] == 100
+    assert row["ttmFCF"] == 20

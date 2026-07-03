@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import ClassVar, TypedDict
 from urllib.parse import urlparse
 
-from .web_state import BrowserState, WebPaths, refresh_state, build_state
+from .providers.dart import DartApiError, MissingDartApiKey
+from .providers.dart_http import DartTransportError
+from .web_state import BrowserState, WebPaths, build_state, fill_financials_state, refresh_state
 
 UI_DIR = Path(__file__).with_name("ui")
 
@@ -74,6 +76,14 @@ class AppHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/refresh":
             self._send_json(200, refresh_state(self.paths, self.top_n))
+            return
+        if path == "/api/financials":
+            try:
+                self._send_json(200, fill_financials_state(self.paths))
+            except MissingDartApiKey:
+                self._send_json(400, {"error": "DART_API_KEY 환경변수가 필요합니다."})
+            except (DartApiError, DartTransportError) as exc:
+                self._send_json(502, {"error": str(exc)})
             return
         self._send_json(404, {"error": "not found"})
 

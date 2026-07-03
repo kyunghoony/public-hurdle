@@ -173,22 +173,39 @@ async function loadState() {
   statusText.textContent = "대기";
 }
 
+async function postState(path, fallbackMessage) {
+  const response = await fetch(path, { method: "POST" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || fallbackMessage);
+  return payload;
+}
+
 async function refreshUniverse() {
   const button = $("#refreshButton");
   button.disabled = true;
   statusText.textContent = "Yahoo 갱신 중";
-  const response = await fetch("/api/refresh", { method: "POST" });
-  if (!response.ok) throw new Error("refresh request failed");
-  const payload = await response.json();
+  const payload = await postState("/api/refresh", "refresh request failed");
   render(payload);
   const kept = payload.refresh ? payload.refresh.preservedCount : 0;
   statusText.textContent = `갱신 완료 · 재무 보존 ${kept}`;
   button.disabled = false;
 }
 
+async function fillFinancials() {
+  const button = $("#financialsButton");
+  button.disabled = true;
+  statusText.textContent = "DART 재무 입력 중";
+  const payload = await postState("/api/financials", "financial request failed");
+  render(payload);
+  const count = payload.financials ? payload.financials.filledCount : 0;
+  statusText.textContent = `재무 입력 완료 · ${count}건`;
+  button.disabled = false;
+}
+
 function bindEvents() {
   $("#reloadButton").addEventListener("click", () => loadState().catch(showError));
   $("#refreshButton").addEventListener("click", () => refreshUniverse().catch(showError));
+  $("#financialsButton").addEventListener("click", () => fillFinancials().catch(showError));
   searchInput.addEventListener("input", (event) => {
     state.query = event.target.value;
     renderRows();
@@ -223,6 +240,7 @@ function bindEvents() {
 
 function showError(error) {
   $("#refreshButton").disabled = false;
+  $("#financialsButton").disabled = false;
   statusText.textContent = "오류";
   detailContent.innerHTML = `<p class="empty">${error.message}</p>`;
 }

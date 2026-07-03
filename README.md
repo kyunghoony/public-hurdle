@@ -25,7 +25,7 @@
 | [TradingAgents](https://github.com/TauricResearch/TradingAgents) (54k★) | 구조화된 설명가능 판정 — 비정형 대화가 아닌 structured report. 판정 카드에 근거 전체가 남는다 |
 
 ```
-providers/          # 소스별 어댑터 (yahoo 구현 / fmp·dart TODO)
+providers/          # 소스별 어댑터 (yahoo·dart 구현 / fmp placeholder)
   └→ models.Ticker  # 표준화 — 엔진은 출처를 모른다
 engine/
   ├ quality.py      # 버핏식 게이트: ROIC≥15, 마진≥10, 부채≤2x, 성장>0
@@ -54,7 +54,10 @@ python -m hurdle.cli hurdle --universe data/kr_top100.csv
 # KR top-100 시세·모멘텀 갱신
 python -m hurdle.cli fetch --pool data/kr_pool.csv --out data/kr_top100.csv --top 100
 
-# 로컬 브라우저 UI
+# OpenDART 재무 컬럼 채우기 (DART_API_KEY 필요)
+python -m hurdle.cli dart-fill --universe data/kr_top100.csv
+
+# 로컬 브라우저 UI (Yahoo 갱신 / DART 재무 버튼 포함)
 python -m hurdle.web
 ```
 
@@ -87,13 +90,13 @@ CRON_TZ=Asia/Seoul
 
 ## 상태 / 로드맵
 
-v0.1: 엔진 + 레짐 + 판정 + Yahoo 프로바이더 + KR top-100 실데이터(시총·모멘텀). 테스트 통과.
-다음: DART/FMP 재무 프로바이더 → top-100 재무 자동 채움 → 웹 UI 포팅.
+v0.1: 엔진 + 레짐 + 판정 + Yahoo 프로바이더 + DART 재무 프로바이더 + KR top-100 실데이터(시총·모멘텀) + 로컬 웹 UI. 테스트 통과.
+다음: DART API key 수령 후 `data/kr_top100.csv` 재무 컬럼 실제 입력, 이후 FMP/US 유니버스 확장.
 자세한 작업 순서와 검증 조건(V1~V6)은 `CLAUDE.md`.
 
 ## GitHub 푸시
 
 ```bash
-git init && git add -A && git commit -m "v0.1: engine + regime + verdict + yahoo provider"
-gh repo create public-hurdle --private --source . --push
+git remote -v
+git push
 ```

@@ -10,8 +10,8 @@ from .config import load_config
 from .engine import hurdle as hurdle_mod
 from .engine import quality, regime
 from .models import Ticker, Valuation
-from .providers import yahoo
-from .refresh import merge_universe
+from .providers import dart, yahoo
+from .refresh import merge_financials, merge_universe
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +74,12 @@ class RefreshSummary(TypedDict):
     skipped: list[str]
 
 
+class FinancialSummary(TypedDict):
+    filledCount: int
+    oldFinancialCount: int
+    missing: list[str]
+
+
 class BrowserState(TypedDict, total=False):
     summary: BrowserSummary
     regime: BrowserRegime
@@ -81,11 +87,13 @@ class BrowserState(TypedDict, total=False):
     sectors: list[str]
     rows: list[BrowserRow]
     refresh: RefreshSummary
+    financials: FinancialSummary
 
 
 ConfigValue: TypeAlias = str | int | float | bool | list[float] | dict[str, "ConfigValue"]
 Config: TypeAlias = dict[str, ConfigValue]
 UniverseFetcher: TypeAlias = Callable[[list[yahoo.PoolRow], Config, int], list[Ticker]]
+FinancialFiller: TypeAlias = Callable[[list[Ticker]], list[Ticker]]
 
 
 def _number(value: float) -> int | float:
@@ -177,5 +185,20 @@ def refresh_state(paths: WebPaths, top_n: int, fetcher: UniverseFetcher = yahoo.
         "preservedCount": sum(1 for ticker in fresh if ticker.symbol in old_financial_symbols),
         "oldFinancialCount": len(old_financial_symbols),
         "skipped": _missing_entries(paths.pool),
+    }
+    return state
+
+
+def fill_financials_state(paths: WebPaths, filler: FinancialFiller = dart.fill_financials) -> BrowserState:
+    old = read_universe(str(paths.universe)) if paths.universe.exists() else []
+    old_financial_count = sum(1 for ticker in old if ticker.ttm_rev > 0)
+    filled = filler(old)
+    write_universe(str(paths.universe), merge_financials(filled, old))
+    state = build_state(paths)
+    financial_symbols = {ticker.symbol for ticker in filled if ticker.ttm_rev > 0}
+    state["financials"] = {
+        "filledCount": state["summary"]["financialCount"],
+        "oldFinancialCount": old_financial_count,
+        "missing": [ticker.symbol for ticker in old if ticker.symbol not in financial_symbols and ticker.ttm_rev <= 0],
     }
     return state
